@@ -1,0 +1,31 @@
+
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.12
+    commands:
+      - pip install pytest flake8
+
+  pre_build:
+    commands:
+      - echo "Running lint checks"
+      - flake8 app.py test_app.py --max-line-length=100
+      - echo "Logging in to Amazon ECR"
+      - aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 103900224718.dkr.ecr.ap-south-1.amazonaws.com
+
+  build:
+    commands:
+      - echo "Running unit tests"
+      - pytest -v test_app.py
+      - echo "Building Docker image"
+      - export IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - docker build -t 103900224718.dkr.ecr.ap-south-1.amazonaws.com/exp9-cicd-ecr-50:$IMAGE_TAG .
+      - docker tag 103900224718.dkr.ecr.ap-south-1.amazonaws.com/exp9-cicd-ecr-50:$IMAGE_TAG 103900224718.dkr.ecr.ap-south-1.amazonaws.com/exp9-cicd-ecr-50:latest
+
+  post_build:
+    commands:
+      - docker push 103900224718.dkr.ecr.ap-south-1.amazonaws.com/exp9-cicd-ecr-50:$IMAGE_TAG
+      - docker push 103900224718.dkr.ecr.ap-south-1.amazonaws.com/exp9-cicd-ecr-50:latest
+      - echo "CI/CD build completed successfully"
